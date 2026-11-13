@@ -1,0 +1,4 @@
+# T-SPIN, Triplet Self-Play Fine-Tuning (reference-free); triplet = (y, y', y_0).
+name: tspin
+alpha: 1.0
+beta: 0.1

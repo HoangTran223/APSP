@@ -1,0 +1,78 @@
+# random seed for batch sampling
+seed: 0
+
+
+# examples per optimizer step, split into gradient_accumulation_steps microbatches
+batch_size: 2
+
+# debug mode (disables wandb logging)
+debug: false
+
+# the port to use for FSDP
+fsdp_port: null
+
+# round directories under base_data_dir, each holding train.jsonl; e.g. datasets=[APSP/ite0,APSP/ite1]
+datasets: ???
+
+base_data_dir: ???
+
+reverse_dataset: false
+
+# wandb configuration
+wandb:
+  enabled: true
+  entity: null
+  project: "apsp"
+
+# root for the local run directory (resolved config.yaml), wandb files and XDG cache
+output_dir: "output"
+
+ckpt_dir: "checkpoints"
+
+# an OmegaConf resolver that returns the local run directory, calling a function in utils.py
+local_run_dir: ${get_local_run_dir:${exp_name},${output_dir}}
+
+# name for this experiment in the local run directory and on wandb
+exp_name: ${build_exp_name:${loss.name},${model.name_or_path},${datasets},${reverse_dataset}}
+
+# the learning rate
+lr: 5e-7
+
+gradient_accumulation_steps: 2
+
+max_grad_norm: 10.0
+
+# the maximum allowed length for an input (prompt + response)
+max_length: 1024
+
+# the maximum allowed length for a prompt
+max_prompt_length: 512
+
+# the number of epochs to train for; if null, must specify n_examples
+n_epochs: 2
+
+# the number of examples to train for; if null, must specify n_epochs
+n_examples: null
+
+# the trainer class to use (e.g. BasicTrainer, FSDPTrainer, TensorParallelTrainer)
+trainer: BasicTrainer
+
+# a torch.optim class name
+optimizer: RMSprop
+
+# warmup steps to a constant LR, used only when warmup_ratio is null
+warmup_steps: 150
+
+# linear warmup over this fraction of the steps, then linear decay to 0
+warmup_ratio: 0.1
+
+# whether or not to use activation/gradient checkpointing
+activation_checkpointing: false
+
+# resume from ckpt_dir/LATEST when an identical run wrote it
+resume: true
+
+defaults:
+- _self_
+- model: qwen # basic model configuration
+- loss: apsp # which loss function (specify loss.beta if using dpo)

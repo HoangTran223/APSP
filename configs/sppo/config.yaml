@@ -1,0 +1,42 @@
+# SPPO / S-SPPO training defaults; scripts/sppo/run_iterations.sh sets the model, data, output dir, LR and loss.
+
+# Model arguments
+model_name_or_path: model_hub/Qwen2.5-1.5B-ultrachat200k
+torch_dtype: null
+
+# Data training arguments
+dataset_mixer:
+  synthetic_data_qwen2.5-1.5b-sppo-uc50k-iter1_score: 1.0
+dataset_splits:
+- train
+preprocessing_num_workers: 12
+
+# Trainer arguments
+bf16: true
+beta: 0.001
+loss_type: sppo
+lam: 1.0
+do_eval: false
+eval_strategy: "no"
+gradient_accumulation_steps: 2
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: False
+learning_rate: 5.0e-7
+log_level: info
+logging_steps: 10
+lr_scheduler_type: linear
+max_grad_norm: 10.0
+max_length: 1024
+max_prompt_length: 512
+num_train_epochs: 2
+optim: rmsprop
+output_dir: checkpoints/qwen2.5-1.5b-sppo-uc50k-iter1
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 4
+push_to_hub: false
+report_to: none
+save_strategy: "epoch"
+save_total_limit: 20
+seed: 42
+warmup_ratio: 0.1

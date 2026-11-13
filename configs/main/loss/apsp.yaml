@@ -1,0 +1,3 @@
+# APSP: -log sigmoid(beta * (chosen ratio + s * rejected ratio)); s per pair comes from score_apsp.py.
+name: apsp
+beta: 0.1

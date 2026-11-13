@@ -1,0 +1,111 @@
+import os
+from datetime import datetime
+import torch
+import random
+import numpy as np
+import torch.distributed as dist
+import socket
+from typing import Dict, Union, List
+
+
+def get_open_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
+
+
+def build_exp_name(loss_name: str, model_name: str, datasets: Union[str, List[str]], reverse_dataset: bool) -> str:
+    model_short_name = model_name.split('/')[-1]
+    dataset_part = '_'.join(datasets)
+    name = f"{loss_name}_{model_short_name}_{dataset_part}"
+    if loss_name == "dpo" and reverse_dataset:
+        name += "_reverse"
+    return name
+
+
+def rank0_print(*args, **kwargs):
+    if not dist.is_initialized() or dist.get_rank() == 0:
+        print(*args, **kwargs)
+
+
+def get_local_dir(path: str) -> str:
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+    return path
+
+
+def get_local_run_dir(exp_name: str, local_dir: str) -> str:
+    timestamp = datetime.now().strftime("%m-%d_%H-%M")
+    run_dir = f"{get_local_dir(local_dir)}/{exp_name}_{timestamp}"
+    os.makedirs(run_dir, exist_ok=True)
+    return run_dir
+
+
+def slice_and_move_batch_for_device(batch: Dict, rank: int, world_size: int, device: str) -> Dict:
+    chunk_size = len(list(batch.values())[0]) // world_size
+    start = chunk_size * rank
+    end = chunk_size * (rank + 1)
+    sliced = {k: v[start:end] for k, v in batch.items()}
+    on_device = {k: (v.to(device) if isinstance(v, torch.Tensor) else v) for k, v in sliced.items()}
+    return on_device
+
+
+def pad_to_length(tensor: torch.Tensor, length: int, pad_value: Union[int, float], dim: int = -1) -> torch.Tensor:
+    if tensor.size(dim) >= length:
+        return tensor
+    else:
+        pad_size = list(tensor.shape)
+        pad_size[dim] = length - tensor.size(dim)
+        return torch.cat([tensor, pad_value * torch.ones(*pad_size, dtype=tensor.dtype, device=tensor.device)], dim=dim)
+
+
+def all_gather_if_needed(values: torch.Tensor, rank: int, world_size: int) -> torch.Tensor:
+    if world_size == 1:
+        return values
+
+    all_values = [torch.empty_like(values).to(rank) for _ in range(world_size)]
+    dist.all_gather(all_values, values)
+    cat_function = torch.cat if values.dim() > 0 else torch.stack
+    return cat_function(all_values, dim=0)
+
+
+def formatted_dict(d: Dict) -> Dict:
+    return {k: (f"{v:.5g}" if type(v) == float else v) for k, v in d.items()}
+
+
+def disable_dropout(model: torch.nn.Module):
+    for module in model.modules():
+        if isinstance(module, torch.nn.Dropout):
+            module.p = 0
+
+
+def get_block_class_from_model(model: torch.nn.Module, block_class_name: str) -> torch.nn.Module:
+    for module in model.modules():
+        if module.__class__.__name__ == block_class_name:
+            return module.__class__
+    raise ValueError(f"Could not find block class {block_class_name} in model {model}")
+
+
+def init_distributed(rank: int, world_size: int, master_addr: str = 'localhost', port: int = 12355, backend: str = 'nccl'):
+    print(rank, 'initializing distributed')
+    os.environ["MASTER_ADDR"] = master_addr
+    os.environ["MASTER_PORT"] = str(port)
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
+    torch.cuda.set_device(rank)
+
+
+class TemporarilySeededRandom:
+    def __init__(self, seed):
+        self.seed = seed
+        self.stored_state = None
+        self.stored_np_state = None
+
+    def __enter__(self):
+        self.stored_state = random.getstate()
+        self.stored_np_state = np.random.get_state()
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        random.setstate(self.stored_state)
+        np.random.set_state(self.stored_np_state)

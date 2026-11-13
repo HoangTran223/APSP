@@ -1,0 +1,13 @@
+name: apsp
+channels:
+  # conda-forge only: python/pip/git are all here, and pulling in `defaults`
+  # trips the Anaconda Terms-of-Service gate on conda >=25.
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10
+  - pip=24.2
+  - git
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu121
+      - -r requirements.txt

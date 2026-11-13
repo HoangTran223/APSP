@@ -1,0 +1,15 @@
+# Qwen3-4B env (do not mix with the Qwen2.5 stack).
+#   conda env create -f environment-qwen3.yml
+# or: conda create -n apsp-qwen3 python=3.10 pip git -y
+#     conda activate apsp-qwen3
+#     pip install vllm==0.8.5 && pip install -r requirements-qwen3.txt
+name: apsp-qwen3
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10
+  - pip=24.2
+  - git
+  - pip:
+      - -r requirements-qwen3.txt

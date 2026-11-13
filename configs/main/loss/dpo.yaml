@@ -1,0 +1,10 @@
+# DPO, SPIN's objective
+name: dpo
+
+beta: ???
+
+# conservative DPO: fraction of pairs treated as flipped; 0 is the original DPO loss
+label_smoothing: 0
+
+# if true, use a uniform (maximum entropy) reference model
+reference_free: false
